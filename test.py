@@ -27,7 +27,7 @@ def main():
     print(f"CRR: {european_call.get_crr(100)}")
 
     # d) part
-    df_option_prices.plot(kind='line', logx=True, figsize=(16, 9), title="comparison CRR, BS and Market Price",
+    df_option_prices.plot(kind='line', logx=True, figsize=(16, 9), title="comparison of CRR, BS and market price",
                           xlabel="periods", ylabel="price")
     plt.show()
 
