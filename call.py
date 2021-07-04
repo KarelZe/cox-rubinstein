@@ -4,7 +4,7 @@ from scipy.stats import norm
 
 class Call(object):
 
-    def __init__(self, s_0, K, r, sigma, T, subscription_ratio):
+    def __init__(self, s_0, K, r, sigma, T, cap=0, maximum_amount=0, subscription_ratio=0, participation_ratio=0):
         """
         This is the constructor for a European call option.
 
@@ -29,6 +29,11 @@ class Call(object):
         self._p = 0
         self._n = 0
         self._subscription_ratio = subscription_ratio
+        self._cap = cap
+        self._maximum_amount = maximum_amount
+        self._participation_ratio = participation_ratio
+
+
 
     def get_bs(self, t=0) -> float:
         """
@@ -59,7 +64,7 @@ class Call(object):
 
         return call * self._subscription_ratio
 
-    def get_crr(self, n: int) -> float:
+    def get_crr(self, n: int, is_capped=False) -> float:
         """
         Function calculate the option price of a call option using a binomial tree as described in:
 
@@ -108,8 +113,23 @@ class Call(object):
             for j in range(i + 1):
                 stock_matrix[j, i] = self._s_0 * (self._u ** (i - j)) * (self._d ** j)
 
-        # calculate pay-off for entire, very last column of matrix
-        option_matrix[:, self._n] = np.maximum(np.zeros(self._n + 1), (stock_matrix[:, self._n] - self._K))
+        # relevant for bonus task
+        if(is_capped):
+            # 1. S > Cap -> max_amount
+            mask_geq_cap = np.where(stock_matrix[:, self._n] >= self._cap, True, False)
+            option_matrix[mask_geq_cap, self._n] = self._maximum_amount
+            
+            # 2. K < S < Cap -> (K + (participation_factor * (S - k))) * subscription_ratio
+            mask_geq_k_leq_cap = np.where((self._K < stock_matrix[:, self._n]) & (stock_matrix[:, self._n] < self._cap) , True, False)
+            option_matrix[mask_geq_k_leq_cap, self._n] = (self._K + (self._participation_ratio * (stock_matrix[mask_geq_k_leq_cap, self._n] - self._K))) * self._subscription_ratio
+            
+            # 3. S < K -> S * subscription ratio
+            mask_leq_k = np.where(stock_matrix[:, self._n] < self._K, True, False)         
+            option_matrix[mask_leq_k, self._n] = stock_matrix[mask_leq_k, self._n] * self._subscription_ratio
+
+        else:
+            # calculate pay-off for entire, very last column of matrix
+            option_matrix[:, self._n] = np.maximum(np.zeros(self._n + 1), (stock_matrix[:, self._n] - self._K))
 
         # calculate prices in matrix recursively. Start at very end and iterate to the very left.
         for i in range(self._n - 1, -1, -1):
@@ -130,7 +150,7 @@ class Call(object):
 
         print(n)
 
-        return call * self._subscription_ratio
+        return call if is_capped else call * self._subscription_ratio
 
     def __str__(self) -> str:
         """
